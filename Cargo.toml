@@ -1,0 +1,11 @@
+[package]
+name = "app"
+version = "0.1.0"
+authors = ["Mike Bush <platy@njk.onl>"]
+edition = "2018"
+
+[workspace]
+members = ["server"]
+exclude = ["web"]
+
+[dependencies]
