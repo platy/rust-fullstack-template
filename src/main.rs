@@ -1,4 +1,4 @@
-use async_std::net::{TcpStream, TcpListener};
+use async_std::net::{TcpListener, TcpStream};
 use async_std::prelude::*;
 use async_std::task;
 use http_types::{Response, StatusCode};
@@ -43,7 +43,7 @@ async fn accept(stream: TcpStream) -> http_types::Result<()> {
                 res.insert_header("Content-Type", "application/wasm");
             }
             res.set_body(data);
-            return Ok(res)
+            return Ok(res);
         }
         let mut res = Response::new(StatusCode::Ok);
         res.insert_header("Content-Type", "text/html");

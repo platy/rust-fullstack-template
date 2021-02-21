@@ -2,21 +2,21 @@
 
 **Kickstart your full-stack Rust project!**
 
-This template comes pre-configured with all the boilerplate for a rust application distributed between a browser component and a server component.
+This template comes pre-configured with the boilerplate for a rust application distributed between a browser component and a server component.
 
-* `(cd server; cargo run)` -- Serve the project locally for
+* `cargo run` -- Serve the project locally for
   development at `http://localhost:8080`.
+  
+  _Currently compiles into a single binary like the production mode, which is slow_
 
-* `(cd server; cargo build)` -- Build the project (in production mode)
+* `cargo build` -- Build the project (in production mode)
 
 ## What's inside?
 
-This template tries not to put more emphasis on the frontend or backend parts. So the main lib project is one that is shared between both parts and the individual parts are a little more hidden away.
-
 ```
-root - base crate - fullstack application
+root - backend crate - builds a single binary serving backend including static files for frontend
 |\- web - frontend wasm crate
-|\- server - backend crate
+|\- shared - componenets shared between front and backend
 
 ## Using This Template
 
