@@ -1,11 +1,16 @@
 [package]
-name = "app"
+name = "rust-fullstack-template"
 version = "0.1.0"
-authors = ["Mike Bush <platy@njk.onl>"]
+authors = ["{{authors}}"]
 edition = "2018"
 
-[workspace]
-members = ["server"]
-exclude = ["web"]
-
 [dependencies]
+shared = { package = "rust-fullstack-template-shared", path = "shared" }
+
+async-h1 = "2.1.2"
+async-std = { version = "1.6.5", features = ["attributes"] }
+dotenv = "0.15.0"
+http-types = "2.5.0"
+
+[build-dependencies]
+wasm-pack = "0.9.1"
