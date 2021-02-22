@@ -28,9 +28,21 @@ This template comes pre-configured with the boilerplate for a rust application d
  \ shared - componenets shared between browser and server
   |- Cargo.toml
   |- src - library shared between browser and server
+```
+
+### Build
+
+The build part of the project can be seen on it's own on the `build` branch, it is set up to package the wasm app using `wasm-pack` and embed it's artifacts inside the server project.
 
 ## Using This Template
 
 Requirements:
 
 * rust toolchain
+* cargo-generate `cargo install cargo-genreate`
+
+Create a new project from this template using cargo-generate:
+
+```
+cargo generate --git https://github.com/platy/rust-fullstack-template
+```
