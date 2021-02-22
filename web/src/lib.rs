@@ -10,7 +10,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 // Called by our JS entry point to run the example
 #[wasm_bindgen(start)]
-pub fn main() -> Result<(), JsValue> {
+pub fn start() -> Result<(), JsValue> {
     // If the `console_error_panic_hook` feature is enabled this will set a panic hook, otherwise
     // it will do nothing.
     utils::set_panic_hook();

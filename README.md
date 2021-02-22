@@ -11,6 +11,8 @@ This template comes pre-configured with the boilerplate for a rust application d
 
 * `cargo build` -- Build the project (in production mode)
 
+* `cargo test && (cd shared; cargo test) && (cd web; wasm-pack test --firefox --headless)` -- run tests for all 3 crates
+
 ## What's inside?
 
 ```
