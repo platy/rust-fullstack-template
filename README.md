@@ -21,7 +21,6 @@ This template comes pre-configured with the boilerplate for a rust application d
 |- build.rs - builds the web crate for inclusion into the server binary
 |\ web - frontend wasm crate
 | |- Cargo.toml
-| |- index.html - SPA main html
 | |- src - rust source code specific to frontend
 | |- tests - tests specific to frontend which can be run in browser
 | |- pkg - built browser application for inclusion into server
@@ -33,6 +32,10 @@ This template comes pre-configured with the boilerplate for a rust application d
 ### Build
 
 The build part of the project can be seen on it's own on the `build` branch, it is set up to package the wasm app using `wasm-pack` and embed it's artifacts inside the server project.
+
+### View
+
+A view is included in `shared/lib.rs` using the *experimental* `lignin` VDOM. The view is rendered both on the server side into html and then is used in the client code, this way your content can be ready for the user while the application is still loading in the background on a slow connection or device.
 
 ## Using This Template
 

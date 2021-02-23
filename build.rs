@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         artifact_map_insertions.push_str(&format!(
             "        \"{}\" => Some({}),\n",
             artifact_name, identifier,
-        ));
+        )); 
     }
     writeln!(generated_web_file,)?;
     generated_web_file.write_all(b"pub fn artifact(path: &str) -> Option<&'static [u8]> {
@@ -92,7 +92,7 @@ fn build_web(web_crate_path: &Path) -> Result<(Vec<PathBuf>, Vec<PathBuf>), Box<
         .map(|dir_entry| dir_entry.unwrap().path())
         .collect();
 
-    let sources: Vec<PathBuf> = ["index.html", "Cargo.toml", "Cargo.lock", "src"]
+    let sources: Vec<PathBuf> = ["index.html", "Cargo.toml", "Cargo.lock", "src/lib.rs", "../shared"] // TODO detect these files, dir doesn't work wel, include shared
         .iter()
         .copied()
         .map(|file_name| web_crate_path.join(file_name))
