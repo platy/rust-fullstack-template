@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use async_std::net::{TcpListener, TcpStream};
 use async_std::prelude::*;
 use async_std::task;
@@ -47,7 +49,22 @@ async fn accept(stream: TcpStream) -> http_types::Result<()> {
         }
         let mut res = Response::new(StatusCode::Ok);
         res.insert_header("Content-Type", "text/html");
-        res.set_body(web::INDEX_HTML);
+        let bump = lignin_html::lignin::bumpalo::Bump::new();
+        let mut html = String::from(r#"<!DOCTYPE html>
+<html>
+    <head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+    <title>My awesome full stack Rust application</title>
+    <script type="module">
+        import init from '/app.js';
+        init();
+    </script>
+    </head>
+    <body>"#);
+        assert!(lignin_html::render(&mut html, &shared::view(&bump, shared::Model("the backend")), &bump).is_ok());
+        html.write_str("</body>
+</html>")?;
+        res.set_body(html);
         Ok(res)
     })
     .await?;

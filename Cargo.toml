@@ -11,6 +11,7 @@ async-h1 = "2.1.2"
 async-std = { version = "1.6.5", features = ["attributes"] }
 dotenv = "0.15.0"
 http-types = "2.5.0"
+lignin-html = "0.0.5"
 
 [build-dependencies]
 wasm-pack = "0.9.1"
