@@ -49,8 +49,9 @@ async fn accept(stream: TcpStream) -> http_types::Result<()> {
         }
         let mut res = Response::new(StatusCode::Ok);
         res.insert_header("Content-Type", "text/html");
-        let bump = lignin_html::lignin::bumpalo::Bump::new();
-        let mut html = String::from(r#"<!DOCTYPE html>
+        let bump = bumpalo::Bump::new();
+        let mut html = String::from(
+            r#"<!DOCTYPE html>
 <html>
     <head>
     <meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
@@ -60,10 +61,18 @@ async fn accept(stream: TcpStream) -> http_types::Result<()> {
         init();
     </script>
     </head>
-    <body>"#);
-        assert!(lignin_html::render(&mut html, &shared::view(&bump, shared::Model("the backend")), &bump).is_ok());
-        html.write_str("</body>
-</html>")?;
+    <body>"#,
+        );
+        assert!(lignin_html::render_fragment(
+            &shared::view(&bump, shared::Model("the backend")),
+            &mut html,
+            20
+        )
+        .is_ok());
+        html.write_str(
+            "</body>
+</html>",
+        )?;
         res.set_body(html);
         Ok(res)
     })
