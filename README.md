@@ -1,6 +1,6 @@
 # `rust-fullstack-template`
 
-**Kickstart your full-stack Rust project!**
+**THIS IS VERY EXPERIMENTAL! - but should be nice for making toys**
 
 This template comes pre-configured with the boilerplate for a rust application distributed between a browser component and a server component.
 
@@ -9,9 +9,9 @@ This template comes pre-configured with the boilerplate for a rust application d
   
   _Currently compiles into a single binary like the production mode, which is slow_
 
-* `cargo build` -- Build the project (in production mode)
+* `cargo build` -- Build the project (in production mode) **Please don't use in production**
 
-* `cargo test && (cd shared; cargo test) && (cd web; wasm-pack test --firefox --headless)` -- run tests for all 3 crates
+* `cargo test && (cd shared; cargo test) && (cd web; wasm-pack test --firefox --headless)` -- run tests for all 3 crates __There's only one test at the moment__
 
 ## What's inside?
 
@@ -19,9 +19,12 @@ This template comes pre-configured with the boilerplate for a rust application d
 \root - backend crate - builds a single binary serving backend including static files for frontend
 |- Cargo.toml
 |- build.rs - builds the web crate for inclusion into the server binary
+|\ src
+| |- main.rs - entrypoint on server, runs the http server
 |\ web - frontend wasm crate
 | |- Cargo.toml
-| |- src - rust source code specific to frontend
+| |\ src - rust source code specific to frontend
+| | |- lib.rs - entrypoint on browser, compiles to wasm
 | |- tests - tests specific to frontend which can be run in browser
 | |- pkg - built browser application for inclusion into server
  \ shared - componenets shared between browser and server

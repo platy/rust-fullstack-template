@@ -29,11 +29,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         .write(true)
         .truncate(true)
         .open(inclusion_file_path)?;
-    writeln!(
-        generated_web_file,
-        r#"pub const INDEX_HTML: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/{}"));"#,
-        web_project_dir.join("index.html").to_str().unwrap(),
-    )?;
+    // TODO use template for default html
+    // writeln!(
+    //     generated_web_file,
+    //     r#"pub const INDEX_HTML: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/{}"));"#,
+    //     web_project_dir.join("index.html").to_str().unwrap(),
+    // )?;
     writeln!(generated_web_file)?;
     let mut artifact_map_insertions = String::new();
     for artifact in web_artifacts {
@@ -52,18 +53,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         artifact_map_insertions.push_str(&format!(
             "        \"{}\" => Some({}),\n",
             artifact_name, identifier,
-        )); 
+        ));
     }
     writeln!(generated_web_file,)?;
-    generated_web_file.write_all(b"pub fn artifact(path: &str) -> Option<&'static [u8]> {
+    generated_web_file.write_all(
+        b"pub fn artifact(path: &str) -> Option<&'static [u8]> {
     match path {
-")?;
+",
+    )?;
     generated_web_file.write_all(artifact_map_insertions.as_bytes())?;
-    generated_web_file.write_all(b"
+    generated_web_file.write_all(
+        b"
         _ => None,
     }
 }
-")?;
+",
+    )?;
 
     println!("build.rs completion");
 
@@ -92,11 +97,17 @@ fn build_web(web_crate_path: &Path) -> Result<(Vec<PathBuf>, Vec<PathBuf>), Box<
         .map(|dir_entry| dir_entry.unwrap().path())
         .collect();
 
-    let sources: Vec<PathBuf> = ["index.html", "Cargo.toml", "Cargo.lock", "src/lib.rs", "../shared"] // TODO detect these files, dir doesn't work wel, include shared
-        .iter()
-        .copied()
-        .map(|file_name| web_crate_path.join(file_name))
-        .collect();
+    let sources: Vec<PathBuf> = [
+        "index.html",
+        "Cargo.toml",
+        "Cargo.lock",
+        "src/lib.rs",
+        "../shared",
+    ] // TODO detect these files, dir doesn't work well, include shared
+    .iter()
+    .copied()
+    .map(|file_name| web_crate_path.join(file_name))
+    .collect();
 
     Ok((sources, artifacts))
 }
