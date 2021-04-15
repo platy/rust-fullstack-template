@@ -64,7 +64,7 @@ async fn accept(stream: TcpStream) -> http_types::Result<()> {
     <body>"#,
         );
         assert!(lignin_html::render_fragment(
-            &shared::view(&bump, shared::Model("the backend")),
+            &shared::view(&bump, &shared::Model("the backend")),
             &mut html,
             20
         )
