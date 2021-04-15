@@ -3,7 +3,7 @@ use bumpalo::Bump;
 
 pub struct Model(pub &'static str);
 
-pub fn view<'a>(bump: &'a Bump, model: Model) -> Node<'a, ThreadBound> {
+pub fn view<'a>(bump: &'a Bump, model: &Model) -> Node<'a, ThreadBound> {
     bump.alloc(Element {
         name: "P",
         attributes: &[],
