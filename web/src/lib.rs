@@ -1,6 +1,6 @@
 mod utils;
 
-use std::{intrinsics::transmute, mem::swap, sync::Mutex};
+use std::{intrinsics::transmute, mem::swap, pin::Pin, sync::Mutex};
 
 use wasm_bindgen::prelude::*;
 use lignin_dom::{diff::DomDiffer, load::{Allocator, load_element}};
@@ -32,11 +32,11 @@ struct Renderer {
     /// Previously rendered vdom, allocated in `bump`
     previous: Vec<Node<'static, lignin::ThreadBound>>,
     differ: DomDiffer,
-    model: shared::Model,
+    model: Pin<Box<shared::Model>>,
 }
 
 impl Renderer {
-    pub fn attach(model: shared::Model, container: web_sys::Element) -> Renderer {
+    pub fn attach(model: Pin<Box<shared::Model>>, container: web_sys::Element) -> Renderer {
         let bump = Bump::new();
         let initial: Node<lignin::ThreadBound> = load_element(&BumpAllocator(&bump), &container).content.into();
         let previous = unsafe {
@@ -56,7 +56,7 @@ impl Renderer {
     }
 
     pub fn render(&mut self) {
-        let vdom: Node<_> = shared::view(&self.bump_spare, &self.model);
+        let vdom = shared::view(&self.bump_spare, self.model.as_ref());
         // web_sys::console::log_1(&JsValue::from_str(&format!("vdom is {:?}, should be {:?}", &vdom_old[0], &vdom)));
         unsafe {
             //SAFETY:
@@ -78,7 +78,7 @@ pub fn start() -> Result<(), JsValue> {
     // If the `console_error_panic_hook` feature is enabled this will set a panic hook, otherwise
     // it will do nothing.
     utils::set_panic_hook();
-    // console_log::init_with_level(log::Level::Debug);
+    console_log::init_with_level(log::Level::Debug);
 
     // Use `web_sys`'s global `window` function to get a handle on the global
     // window object.
@@ -86,8 +86,9 @@ pub fn start() -> Result<(), JsValue> {
     let document = window.document().expect("should have a document on window");
     let body = document.body().expect("document should have a body");
 
-    let mut renderer = Renderer::attach(shared::Model("the frontend"), body.into());
+    let mut renderer = Renderer::attach(Box::pin(shared::Model::new("the frontend")), body.into());
     renderer.render();
+    Box::leak(Box::new(renderer));
 
     Ok(())
 }

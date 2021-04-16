@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 bumpalo = { version = "3.6.1", features = ["collections"] }
 lignin = { git = "https://github.com/Tamschi/lignin.git", branch = "develop" }
+log = "0.4"

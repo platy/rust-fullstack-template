@@ -29,6 +29,8 @@ wee_alloc = { version = "0.4.5", optional = true }
 lignin-dom = { git = "https://github.com/Tamschi/lignin-dom.git", branch = "develop" }
 lignin = { git = "https://github.com/Tamschi/lignin.git", branch = "develop" }
 bumpalo = "3.6.1"
+log = "0.4"
+console_log = "0.2.0"
 
 [dependencies.web-sys]
 version = "0.3.6"

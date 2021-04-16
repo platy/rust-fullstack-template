@@ -13,6 +13,7 @@ dotenv = "0.15.0"
 http-types = "2.5.0"
 lignin-html = { git = "https://github.com/Tamschi/lignin-html.git", branch = "develop" }
 bumpalo = "3.6.1"
+env_logger = "0.8.3"
 
 [build-dependencies]
 wasm-pack = "0.9.1"

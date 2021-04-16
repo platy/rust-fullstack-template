@@ -11,6 +11,7 @@ mod web {
 
 #[async_std::main]
 async fn main() -> http_types::Result<()> {
+    env_logger::init();
     // Open up a TCP connection and create a URL.
     dotenv::dotenv()?;
     let listen_addr = dotenv::var("LISTEN_ADDR")?;
@@ -64,7 +65,7 @@ async fn accept(stream: TcpStream) -> http_types::Result<()> {
     <body>"#,
         );
         assert!(lignin_html::render_fragment(
-            &shared::view(&bump, &shared::Model("the backend")),
+            &shared::view(&bump, Box::pin(shared::Model::new("the backend")).as_ref()),
             &mut html,
             20
         )
