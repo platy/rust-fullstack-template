@@ -1,11 +1,24 @@
 mod utils;
 
-use std::{intrinsics::transmute, mem::swap, pin::Pin, sync::Mutex};
+use std::{
+    cell::{Cell, RefCell},
+    intrinsics::transmute,
+    mem::swap,
+    pin::Pin,
+    ptr::NonNull,
+};
 
-use wasm_bindgen::prelude::*;
-use lignin_dom::{diff::DomDiffer, load::{Allocator, load_element}};
-use lignin::{Node};
 use bumpalo::Bump;
+use js_sys::Function;
+use lignin::{
+    web::Event, CallbackRegistration, EventBinding, EventBindingOptions, Node, ThreadBound,
+};
+use lignin_dom::{
+    diff::DomDiffer,
+    load::{load_element, Allocator},
+};
+use shared::{Helper, Model};
+use wasm_bindgen::{prelude::*, JsCast};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -25,38 +38,25 @@ impl<'a> Allocator<'a> for BumpAllocator<'a> {
     }
 }
 
-struct Renderer {
+struct RenderState {
     /// Spare bump space, always empty at rest
     bump_spare: Bump,
     bump: Bump,
     /// Previously rendered vdom, allocated in `bump`
     previous: Vec<Node<'static, lignin::ThreadBound>>,
     differ: DomDiffer,
-    model: Pin<Box<shared::Model>>,
 }
 
-impl Renderer {
-    pub fn attach(model: Pin<Box<shared::Model>>, container: web_sys::Element) -> Renderer {
-        let bump = Bump::new();
-        let initial: Node<lignin::ThreadBound> = load_element(&BumpAllocator(&bump), &container).content.into();
-        let previous = unsafe {
-            //SAFETY:
-            // This formally detaches the lifetime of `previous` from `bump`, so that both can be owned by the same struct.
-            // `previous` must not be allowed to outlive `bump`, or live beyond it's next reset.
-            transmute::<Node<'_, _>, Node<'_, _>>(initial)
-        };
-        let mut differ = DomDiffer::new_for_element_child_nodes(container.into());
-        Renderer {
-            bump_spare: Bump::new(),
-            bump,
-            previous: vec![previous],
-            differ,
+impl RenderState {
+    pub fn render(&mut self, model: &Model, renderer: &Renderer) {
+        let vdom = shared::view(
+            &self.bump_spare,
             model,
-        }
-    }
-
-    pub fn render(&mut self) {
-        let vdom = shared::view(&self.bump_spare, self.model.as_ref());
+            &ActualHelper {
+                renderer,
+                bump: &self.bump_spare,
+            },
+        );
         // web_sys::console::log_1(&JsValue::from_str(&format!("vdom is {:?}, should be {:?}", &vdom_old[0], &vdom)));
         unsafe {
             //SAFETY:
@@ -72,13 +72,119 @@ impl Renderer {
     }
 }
 
+struct Renderer {
+    render_scheduled: Cell<bool>,
+    render_state: RefCell<RenderState>,
+    render_callback: RefCell<Option<Function>>,
+
+    model: shared::Model,
+    /// Keeps the lignin registration, on drop lignin will cancel the callback
+    registrations: RefCell<Vec<CallbackRegistration<CallbackReceiver, fn(lignin::web::Event)>>>,
+}
+
+impl Renderer {
+    pub fn attach(model: Model, container: web_sys::Element) -> Renderer {
+        let bump = Bump::new();
+        let initial: Node<lignin::ThreadBound> = load_element(&BumpAllocator(&bump), &container)
+            .content
+            .into();
+        let previous = unsafe {
+            //SAFETY:
+            // This formally detaches the lifetime of `previous` from `bump`, so that both can be owned by the same struct.
+            // `previous` must not be allowed to outlive `bump`, or live beyond it's next reset.
+            transmute::<Node<'_, _>, Node<'_, _>>(initial)
+        };
+        Renderer {
+            render_scheduled: Cell::new(false),
+            render_callback: RefCell::new(None),
+            render_state: RefCell::new(RenderState {
+                bump_spare: Bump::new(),
+                bump,
+                previous: vec![previous],
+                differ: DomDiffer::new_for_element_child_nodes(container),
+            }),
+            model,
+            registrations: RefCell::new(Vec::with_capacity(20)),
+        }
+    }
+
+    pub fn render(&self) {
+        self.render_scheduled.set(false);
+        self.render_state.borrow_mut().render(&self.model, self)
+    }
+
+    pub fn schedule_render(&self) {
+        let renderer = NonNull::from(self);
+        let mut render_callback = self.render_callback.borrow_mut();
+        let render_callback = render_callback.get_or_insert_with(|| {
+            Closure::wrap(
+                Box::new(move || unsafe { renderer.as_ref().render() }) as Box<dyn FnMut()>
+            )
+            .into_js_value()
+            .unchecked_into()
+        });
+        if !self.render_scheduled.get() {
+            let window = web_sys::window().expect("no global `window` exists");
+            window.request_animation_frame(&render_callback).unwrap();
+        }
+    }
+}
+
+struct CallbackReceiver {
+    /// Access to the parent Renderer, for event handling
+    renderer: NonNull<Renderer>,
+    /// Function for handling an event
+    callback: fn(&mut Model, Event),
+}
+
+struct ActualHelper<'r, 'b> {
+    renderer: &'r Renderer,
+    bump: &'b Bump,
+}
+
+impl<'r, 'a> Helper<'a> for ActualHelper<'r, 'a> {
+    fn event_binding(
+        &self,
+        name: &'a str,
+        options: EventBindingOptions,
+        callback: fn(&mut Model, Event),
+    ) -> &'a [EventBinding<'a, ThreadBound>] {
+        let renderer = self.renderer;
+        let receiver = self.bump.alloc(CallbackReceiver {
+            renderer: NonNull::from(&*renderer), // the receiver needs to be pinned and I guess it needs to be the Pin context of the Renderer (though not sure) in that case i think i have to use map_unchecked. I can't then use bump to store the receiver.  I'm tooo tired
+            callback,
+        });
+        let callback_reg = CallbackRegistration::<_, fn(lignin::web::Event)>::new(
+            Pin::new(receiver),
+            |cr, event| unsafe {
+                let CallbackReceiver {
+                    mut renderer,
+                    callback,
+                    ..
+                } = *cr;
+                let renderer = renderer.as_mut();
+                let model = &mut renderer.model;
+                callback(model, event);
+                renderer.schedule_render();
+            },
+        );
+        let b = EventBinding {
+            name,
+            options,
+            callback: callback_reg.to_ref_thread_bound(),
+        };
+        renderer.registrations.borrow_mut().push(callback_reg);
+        self.bump.alloc_slice_copy(&[b])
+    }
+}
+
 // Called by our JS entry point to run the example
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
     // If the `console_error_panic_hook` feature is enabled this will set a panic hook, otherwise
     // it will do nothing.
     utils::set_panic_hook();
-    console_log::init_with_level(log::Level::Debug);
+    console_log::init_with_level(log::Level::Debug).unwrap();
 
     // Use `web_sys`'s global `window` function to get a handle on the global
     // window object.
@@ -86,8 +192,11 @@ pub fn start() -> Result<(), JsValue> {
     let document = window.document().expect("should have a document on window");
     let body = document.body().expect("document should have a body");
 
-    let mut renderer = Renderer::attach(Box::pin(shared::Model::new("the frontend")), body.into());
-    renderer.render();
+    let renderer = Box::pin(Renderer::attach(
+        shared::Model::new("the frontend"),
+        body.into(),
+    ));
+    renderer.as_ref().render();
     Box::leak(Box::new(renderer));
 
     Ok(())

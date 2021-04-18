@@ -1,51 +1,46 @@
-use lignin::{Element, web::Event, Node, ThreadBound, ElementCreationOptions, EventBinding, EventBindingOptions, CallbackRegistration};
+use lignin::{Element, ElementCreationOptions, EventBinding, EventBindingOptions, Node, ThreadBound, web::Event};
 use bumpalo::Bump;
-use std::{cell::Cell, pin::Pin};
 
 pub struct Model {
     area: &'static str,
-    counter: Cell<u32>,
-    reg: Cell<Option<lignin::CallbackRegistration<Model, fn(lignin::web::Event)>>>,
+    counter: u32,
 }
 
 impl Model {
     pub fn new(area: &'static str) -> Self {
         Model {
             area,
-            counter: Cell::new(0),
-            reg: Cell::new(None),
+            counter: 0,
         }
     }
-}
 
-fn increment(receiver: *const Model, _event: Event) {
-    unsafe {
-        log::info!("increment {:?}", receiver);
+    fn on_click(&mut self, _event: Event) {
+        log::info!("increment {}", self.counter);
 
-        let receiver = &*receiver;
-        receiver.counter.set(receiver.counter.get() + 1);
+        self.counter += 1;
     }
 }
 
-pub fn view<'a>(bump: &'a Bump, model: Pin<&Model>) -> Node<'a, ThreadBound> {
+pub fn view<'a>(bump: &'a Bump, model: &Model, helper: &dyn Helper<'a>) -> Node<'a, ThreadBound> {
     log::info!("Rendering view");
-    let callback_reg = CallbackRegistration::<_, fn(lignin::web::Event)>::new(model, increment);
-    let v = bump.alloc(Element {
+    bump.alloc(Element {
         name: "P",
         attributes: &[],
         content: Node::Text {
-            text: bumpalo::format!(in bump, "Hello from {} of your full-stack Rust app! Counter is {}", model.area, model.counter.get()).into_bump_str(),
+            text: bumpalo::format!(in bump, "Hello from {} of your full-stack Rust app! Counter is {}", model.area, model.counter).into_bump_str(),
             dom_binding: None,
         },
-        event_bindings: bump.alloc_slice_copy(&[
-            EventBinding {
-                name: "click",
-                options: EventBindingOptions::new(),
-                callback: callback_reg.to_ref_thread_bound(),
-            }
-        ]),
+        event_bindings: helper.event_binding("click", EventBindingOptions::new(), Model::on_click),
         creation_options: ElementCreationOptions::new(),
-    }).as_html();
-    model.reg.set(Some(callback_reg));
-    v
+    }).as_html()
+}
+
+pub trait Helper<'a> {
+    fn event_binding(&self, name: &'a str, options: EventBindingOptions, callback: fn(&mut Model, Event)) -> &'a[EventBinding<'a, ThreadBound>];
+}
+
+impl<'a> Helper<'a> for () {
+    fn event_binding(&self, _name: &'a str, _options: EventBindingOptions, _callback: fn(&mut Model, Event)) -> &'a[EventBinding<'a, ThreadBound>] {
+        &[]
+    }
 }
