@@ -1,6 +1,7 @@
 use lignin::{Element, ElementCreationOptions, EventBinding, EventBindingOptions, Node, ThreadBound, web::Event};
 use bumpalo::Bump;
 
+#[derive(Debug)]
 pub struct Model {
     area: &'static str,
     counter: u32,

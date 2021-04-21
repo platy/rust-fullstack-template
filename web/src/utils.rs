@@ -1,10 +1,4 @@
-use std::{
-    cell::{Cell, RefCell},
-    intrinsics::transmute,
-    mem::swap,
-    pin::Pin,
-    ptr::NonNull,
-};
+use std::{cell::{Cell, RefCell}, fmt, intrinsics::transmute, mem::swap, pin::Pin, ptr::NonNull};
 
 use bumpalo::Bump;
 use js_sys::Function;
@@ -85,7 +79,14 @@ pub struct Renderer {
     registrations: RefCell<Vec<CallbackRegistration<CallbackReceiver, fn(lignin::web::Event)>>>,
 }
 
+impl fmt::Debug for Renderer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("Renderer")
+    }
+}
+
 impl Renderer {
+    #[tracing::instrument]
     pub fn attach(model: Model, container: web_sys::Element) -> Pin<Box<Renderer>> {
         let bump = Bump::new();
         let initial: Node<lignin::ThreadBound> = load_element(&BumpAllocator(&bump), &container)
@@ -112,11 +113,13 @@ impl Renderer {
         Box::pin(r)
     }
 
+    #[tracing::instrument]
     pub fn render(&self) {
         self.render_scheduled.set(false);
         self.render_state.borrow_mut().render(&self.model, self)
     }
 
+    #[tracing::instrument]
     pub fn schedule_render(&self) {
         let renderer = NonNull::from(self);
         let mut render_callback = self.render_callback.borrow_mut();
@@ -160,17 +163,7 @@ impl<'r, 'a> Helper<'a> for ActualHelper<'r, 'a> {
         });
         let callback_reg = CallbackRegistration::<_, fn(lignin::web::Event)>::new(
             Pin::new(receiver),
-            |cr, event| unsafe {
-                let CallbackReceiver {
-                    mut renderer,
-                    callback,
-                    ..
-                } = *cr;
-                let renderer = renderer.as_mut();
-                let model = &mut renderer.model;
-                callback(model, event);
-                renderer.schedule_render();
-            },
+            renderer_callback,
         );
         let b = EventBinding {
             name,
@@ -179,5 +172,20 @@ impl<'r, 'a> Helper<'a> for ActualHelper<'r, 'a> {
         };
         renderer.registrations.borrow_mut().push(callback_reg);
         self.bump.alloc_slice_copy(&[b])
+    }
+}
+
+#[tracing::instrument]
+fn renderer_callback(cr: *const CallbackReceiver, event: Event) {
+    unsafe {
+        let CallbackReceiver {
+            mut renderer,
+            callback,
+            ..
+        } = *cr;
+        let renderer = renderer.as_mut();
+        let model = &mut renderer.model;
+        callback(model, event);
+        renderer.schedule_render();
     }
 }
