@@ -44,7 +44,7 @@ struct Renderer {
 
 impl Renderer {
     /// Renders the model into a vdom and updates the real dom to match
-    pub fn render<S: Fn()>(&mut self, model: &Model<S>) {
+    pub fn render(&mut self, model: &Model) {
         let vdom = shared::view(
             &self.bump_spare,
             model,
@@ -89,7 +89,7 @@ pub struct RenderLoop {
     render_scheduled: Cell<bool>,
     render_callback: RefCell<Option<Function>>,
 
-    model: Pin<Box<shared::Model<Box<dyn Fn()>>>>,
+    model: Pin<Box<shared::Model>>,
 }
 
 impl fmt::Debug for RenderLoop {

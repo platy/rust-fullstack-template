@@ -19,13 +19,13 @@ impl ModelData {
 }
 
 // #[derive(Debug)]
-pub struct Model<S> {
+pub struct Model {
     data: ModelData,
     on_click_registration: RefCell<Option<CallbackRegistration<Self, fn(lignin::web::Event)>>>,
-    schedule_render: RefCell<Option<S>>,
+    schedule_render: RefCell<Option<Box<dyn Fn()>>>,
 }
 
-impl<S: Fn()> Model<S> {
+impl Model {
     pub fn new(data: ModelData) -> Pin<Box<Self>> {
         let m = Box::pin(Model {
             data,
@@ -57,12 +57,12 @@ impl<S: Fn()> Model<S> {
         log::info!("incremented {}", v);
     }
 
-    pub fn set_render_scheduler(&self, f: S) {
+    pub fn set_render_scheduler(&self, f: Box<dyn Fn()>) {
         *self.schedule_render.borrow_mut() = Some(f);
     }
 }
 
-pub fn view<'a, S: Fn()>(bump: &'a Bump, model: &Model<S>) -> Node<'a, ThreadBound> {
+pub fn view<'a>(bump: &'a Bump, model: &Model) -> Node<'a, ThreadBound> {
     log::info!("Rendering view");
     bump.alloc(Element {
         name: "P",
