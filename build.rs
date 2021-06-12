@@ -1,5 +1,5 @@
 use std::{
-    env,
+    env::{self, VarError},
     error::Error,
     fs,
     io::Write,
@@ -8,15 +8,78 @@ use std::{
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=build.rs");
-
+    println!(
+        "Envs: {:#?}",
+        std::env::vars().collect::<std::collections::HashMap<_, _>>()
+    );
+    println!("Args: {:?}", std::env::args());
     let web_project_dir: &Path = "web".as_ref();
 
-    let (web_sources, web_artifacts) = build_web(web_project_dir)?;
+    let cargo_cfg_feature = env::var("CARGO_CFG_FEATURE");
+    match cargo_cfg_feature.as_deref() {
+        Ok("cargo-clippy") => {
+            println!("Skipping build script in clippy");
+            return Ok(());
+        }
+        Ok(f) => panic!("Unknown feature {}", f),
+        Err(VarError::NotUnicode(_)) => {
+            cargo_cfg_feature.unwrap();
+        }
+        Err(VarError::NotPresent) => {
+            let (web_sources, web_artifacts) = build_web(web_project_dir)?; 
 
-    for path in web_sources {
-        println!("cargo:rerun-if-changed={}", path.to_str().unwrap());
-    }
+            for path in web_sources {
+                println!("cargo:rerun-if-changed={}", path.to_str().unwrap());
+            }
 
+            generate_web_file(&web_artifacts)?;
+        }
+    };
+
+    println!("build.rs completion");
+
+    Ok(())
+}
+
+fn build_web(web_crate_path: &Path) -> Result<(Vec<PathBuf>, Vec<PathBuf>), Box<dyn Error>> {
+    let web_out_path = web_crate_path.join("pkg");
+    let build_opts = wasm_pack::command::build::BuildOptions {
+        path: Some(web_crate_path.to_path_buf()),
+        scope: None,
+        mode: wasm_pack::install::InstallMode::Normal,
+        disable_dts: false,
+        target: wasm_pack::command::build::Target::Web,
+        debug: true,
+        dev: true,
+        release: false,
+        profiling: false,
+        out_dir: "pkg".to_owned(),
+        out_name: Some("app".to_owned()),
+        extra_options: vec![],
+    };
+    wasm_pack::command::build::Build::try_from_opts(build_opts)?.run()?;
+
+    let artifacts: Vec<PathBuf> = fs::read_dir(&web_out_path)?
+        .map(|dir_entry| dir_entry.unwrap().path())
+        .collect();
+
+    let sources: Vec<PathBuf> = [
+        "index.html",
+        "Cargo.toml",
+        "Cargo.lock",
+        "src/lib.rs",
+        "src/utils.rs",
+        "../shared",
+    ] // TODO detect these files, dir doesn't work well, include shared
+    .iter()
+    .copied()
+    .map(|file_name| web_crate_path.join(file_name))
+    .collect();
+
+    Ok((sources, artifacts))
+}
+
+fn generate_web_file(web_artifacts: &[PathBuf]) -> Result<(), Box<dyn Error>> {
     let out_dir = env::var_os("OUT_DIR").unwrap();
     fs::create_dir_all(&out_dir)?;
     let inclusion_file_path = Path::new(&out_dir).join("web.rs");
@@ -69,45 +132,5 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ",
     )?;
-
-    println!("build.rs completion");
-
     Ok(())
-}
-
-fn build_web(web_crate_path: &Path) -> Result<(Vec<PathBuf>, Vec<PathBuf>), Box<dyn Error>> {
-    let web_out_path = web_crate_path.join("pkg");
-    let build_opts = wasm_pack::command::build::BuildOptions {
-        path: Some(web_crate_path.to_path_buf()),
-        scope: None,
-        mode: wasm_pack::install::InstallMode::Normal,
-        disable_dts: false,
-        target: wasm_pack::command::build::Target::Web,
-        debug: true,
-        dev: true,
-        release: false,
-        profiling: false,
-        out_dir: "pkg".to_owned(),
-        out_name: Some("app".to_owned()),
-        extra_options: vec![],
-    };
-    wasm_pack::command::build::Build::try_from_opts(build_opts)?.run()?;
-
-    let artifacts: Vec<PathBuf> = fs::read_dir(&web_out_path)?
-        .map(|dir_entry| dir_entry.unwrap().path())
-        .collect();
-
-    let sources: Vec<PathBuf> = [
-        "index.html",
-        "Cargo.toml",
-        "Cargo.lock",
-        "src/lib.rs",
-        "../shared",
-    ] // TODO detect these files, dir doesn't work well, include shared
-    .iter()
-    .copied()
-    .map(|file_name| web_crate_path.join(file_name))
-    .collect();
-
-    Ok((sources, artifacts))
 }

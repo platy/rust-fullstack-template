@@ -14,7 +14,7 @@ pub fn start() -> Result<(), JsValue> {
     // If the `console_error_panic_hook` feature is enabled this will set a panic hook, otherwise
     // it will do nothing.
     utils::set_panic_hook();
-    // console_log::init_with_level(log::Level::Debug).unwrap();
+    console_log::init_with_level(log::Level::Debug).unwrap();
     tracing_wasm::set_as_global_default();
 
     // Use `web_sys`'s global `window` function to get a handle on the global
@@ -23,10 +23,10 @@ pub fn start() -> Result<(), JsValue> {
     let document = window.document().expect("should have a document on window");
     let body = document.body().expect("document should have a body");
 
-    let renderer = Box::pin(utils::Renderer::attach(
-        shared::Model::new("the frontend"),
+    let renderer = utils::RenderLoop::attach(
+        shared::ModelData::new("the frontend"),
         body.into(),
-    ));
+    );
     renderer.as_ref().render();
     Box::leak(Box::new(renderer));
 

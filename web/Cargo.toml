@@ -27,7 +27,7 @@ console_error_panic_hook = { version = "0.1.6", optional = true }
 # Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
 wee_alloc = { version = "0.4.5", optional = true }
 lignin-dom = { git = "https://github.com/Tamschi/lignin-dom.git", branch = "develop" }
-lignin = "0.0.6"
+lignin = "0.1.0"
 bumpalo = "3.6.1"
 log = "0.4"
 console_log = "0.2.0"
